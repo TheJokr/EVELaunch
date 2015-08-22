@@ -18,7 +18,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-# Usage: python launchEve.py <USERNAME> <PASSWORD> <CHAR NAME>
+# Usage: python launchEve.py <USERNAME> <PASSWORD> <CHAR NAME> [triPlatform]
 # <CHAR NAME> is the name of one of the characters of the Account
 
 
@@ -44,15 +44,18 @@ except IndexError:
 # Get access token
 s = requests.Session()
 authURI = ("https://login.eveonline.com/Account/LogOn"
-           "?ReturnUrl=%2Foauth%2Fauthorize%2F%3Fclient_id%3DeveLauncherTQ"
+           "?ReturnUrl=%2Foauth%2Fauthorize%2F"
+           "%3Fclient_id%3DeveLauncherTQ"
            "%26lang%3Den%26response_type%3Dtoken%26redirect_uri%3D"
            "https%3A%2F%2Flogin.eveonline.com%2F"
            "launcher%3Fclient_id%3DeveLauncherTQ"
            "%26scope%3DeveClientToken")
-r = s.post(authURI, data={"UserName": user, "Password": pwd},
+r = s.post(authURI,
+           data={"UserName": user, "Password": pwd},
            headers={"referer": authURI,
                     "Origin": "https://login.eveonline.com"},
-           allow_redirects=True, timeout=5)
+           allow_redirects=True,
+           timeout=5)
 
 # Character name challenge
 if not r.history:
@@ -85,8 +88,12 @@ ssoToken = re.search("#access_token=([\w\d_-]+)", r.url).group(1)
 exefile = os.path.join(os.environ['PROGRAMFILES(x86)'], "CCP",
                        "EVE", "bin", "ExeFile.exe")
 if os.path.isfile(exefile):
+    try:
+        dx = sys.argv[4]
+    except IndexError:
+        dx = "dx9"
     subprocess.Popen([exefile, "/noconsole", "/ssoToken={}".format(ssoToken),
-                      "/triPlatform=dx9"])
+                      "/triPlatform={}".format(dx)])
 else:
     print("Couldn't find ExeFile.exe at \"{}\"".format(exefile))
     sys.exit(1)
