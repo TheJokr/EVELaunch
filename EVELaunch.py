@@ -37,36 +37,30 @@ try:
     char = sys.argv[3]
 except IndexError:
     print("Missing information. "
-          "Usage: python launchEve.py <USERNAME> <PASSWORD> <CHAR NAME>")
+          "Usage: python launchEve.py <USERNAME> <PASSWORD> "
+          "<CHAR NAME> [triPlatform]")
     sys.exit(1)
 
 
 # Get access token
 s = requests.Session()
-authURI = ("https://login.eveonline.com/Account/LogOn"
-           "?ReturnUrl=%2Foauth%2Fauthorize%2F"
-           "%3Fclient_id%3DeveLauncherTQ"
-           "%26lang%3Den%26response_type%3Dtoken%26redirect_uri%3D"
-           "https%3A%2F%2Flogin.eveonline.com%2F"
-           "launcher%3Fclient_id%3DeveLauncherTQ"
-           "%26scope%3DeveClientToken")
-r = s.post(authURI,
+authURI = "https://login.eveonline.com/Account/LogOn"
+payload = {'ReturnUrl': "/oauth/authorize/?client_id=eveLauncherTQ&"
+                        "lang=en&response_type=token&"
+                        "redirect_uri=https://login.eveonline.com/launcher?"
+                        "client_id=eveLauncherTQ&"
+                        "scope=eveClientToken"}
+r = s.post(authURI, params=payload,
            data={"UserName": user, "Password": pwd},
            headers={"referer": authURI,
                     "Origin": "https://login.eveonline.com"},
            allow_redirects=True,
            timeout=5)
 
-# Character name challenge
+# Login challenge
 if not r.history:
-    challengeURI = ("https://login.eveonline.com/Account/Challenge"
-                    "?ReturnUrl=%2Foauth%2Fauthorize%2F"
-                    "%3Fclient_id%3DeveLauncherTQ"
-                    "%26lang%3Den%26response_type%3Dtoken%26redirect_uri%3D"
-                    "https%3A%2F%2Flogin.eveonline.com%2F"
-                    "launcher%3Fclient_id%3DeveLauncherTQ"
-                    "%26scope%3DeveClientToken")
-    r = s.post(challengeURI, data={"Challenge": char})
+    challengeURI = "https://login.eveonline.com/Account/Challenge"
+    r = s.post(challengeURI, params=payload, data={"Challenge": char})
 
 # Extract access token
 try:
@@ -77,14 +71,14 @@ except AttributeError:
 
 
 # Get SSO token
-ssoURI = ("https://login.eveonline.com/"
-          "launcher/token?accesstoken={}").format(accToken)
-r = requests.get(ssoURI, allow_redirects=True, timeout=5)
+ssoURI = "https://login.eveonline.com/launcher/token"
+r = requests.get(ssoURI, params={'accesstoken': accToken},
+                 allow_redirects=True, timeout=5)
 
 # Extract SSO token
 ssoToken = re.search("#access_token=([\w\d_-]+)", r.url).group(1)
 
-# Start client
+# Open client
 exefile = os.path.join(os.environ['PROGRAMFILES(x86)'], "CCP",
                        "EVE", "bin", "ExeFile.exe")
 if os.path.isfile(exefile):
