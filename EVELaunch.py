@@ -25,7 +25,11 @@
 import sys
 import os
 import subprocess
-import re
+
+try:
+    import urlparse
+except ImportError:
+    import urllib.parse as urlparse
 
 import requests
 
@@ -45,15 +49,13 @@ except IndexError:
 # Get access token
 s = requests.Session()
 authURI = "https://login.eveonline.com/Account/LogOn"
-payload = {'ReturnUrl': "/oauth/authorize/?client_id=eveLauncherTQ&"
-                        "lang=en&response_type=token&"
-                        "redirect_uri=https://login.eveonline.com/launcher?"
-                        "client_id=eveLauncherTQ&"
-                        "scope=eveClientToken"}
+payload = {'ReturnURL': "/oauth/authorize/?client_id=eveLauncherTQ"
+                        "&lang=en&response_type=token"
+                        "&redirect_uri=https://login.eveonline.com/launcher"
+                        "?client_id=eveLauncherTQ"
+                        "&scope=eveClientToken%20user"}
 r = s.post(authURI, params=payload,
            data={"UserName": user, "Password": pwd},
-           headers={"referer": authURI,
-                    "Origin": "https://login.eveonline.com"},
            allow_redirects=True,
            timeout=5)
 
@@ -64,8 +66,9 @@ if not r.history:
 
 # Extract access token
 try:
-    accToken = re.search("#access_token=([\w\d_-]+)", r.url).group(1)
-except AttributeError:
+    rFragment = urlparse.urlparse(r.url).fragment
+    accToken = urlparse.parse_qs(rFragment)['access_token'][0]
+except KeyError:
     print("Couldn't log in using provided credentials")
     sys.exit(1)
 
@@ -76,7 +79,8 @@ r = requests.get(ssoURI, params={'accesstoken': accToken},
                  allow_redirects=True, timeout=5)
 
 # Extract SSO token
-ssoToken = re.search("#access_token=([\w\d_-]+)", r.url).group(1)
+rFragment = urlparse.urlparse(r.url).fragment
+ssoToken = urlparse.parse_qs(rFragment)['access_token'][0]
 
 # Open client
 exefile = os.path.join(os.environ['PROGRAMFILES(x86)'], "CCP",
