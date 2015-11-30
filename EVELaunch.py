@@ -86,9 +86,72 @@ r = s.get(ssoURI, params={'accesstoken': accToken},
 rFragment = urlparse.urlparse(r.url).fragment
 ssoToken = urlparse.parse_qs(rFragment)['access_token'][0]
 
-# Open client
+
+# Locate exefile
+# CCP replaces whitespaces and '\' with underscores in their folder names
+# Who thought this would be a good idea?
+def getUnderscoredPath(base, fragments):
+    if "_" not in fragments:
+        # Last fragment
+        checkPath = os.path.join(base, fragments)
+        return checkPath if os.path.isdir(checkPath) else None
+
+    folder, path = fragments.split("_", 1)
+    checkPath = os.path.join(base, folder)
+    if os.path.isdir(checkPath):
+        # Path doesn't contain whitespaces (so far)
+        return getUnderscoredPath(checkPath, path)
+    else:
+        # Path either contains whitespaces or is invalid (deleted)
+        possiblePaths = []
+        pathParts = path.split("_")
+        for idx, part in enumerate(pathParts):
+            checkPath += " " + part
+            if os.path.isdir(checkPath):
+                wP = getUnderscoredPath(checkPath, "_".join(pathParts[idx+1:]))
+                if wP:
+                    possiblePaths.append(wP)
+        return possiblePaths
+
+
+# Flatten list of unkown depth
+def flatten(_list):
+    if not _list:
+        return _list
+    if isinstance(_list[0], list):
+        return flatten(_list[0]) + flatten(_list[1:])
+    return _list[:1] + flatten(_list[1:])
+
+
+EVEConfig = os.path.join(os.environ['LOCALAPPDATA'], "CCP", "EVE")
+cfgDirs = [_dir[:-len("_tranquility")] for _dir in os.listdir(EVEConfig)
+           if os.path.isdir(os.path.join(EVEConfig, _dir)) and
+           _dir.endswith("_tranquility")]
+
+rootDirs = []
+for _dir in cfgDirs:
+    try:
+        drive, path = _dir.split('_', 1)
+    except ValueError:
+        # Path contains just a drive letter
+        drive, path = _dir.split('_', 1), ""
+
+    drive = "{}:\\".format(drive.upper())
+    rootDirs.append(getUnderscoredPath(drive, path))
+
+rootDirs = flatten(rootDirs)
+rootDirs = [item for item in rootDirs if item is not None]
+
+# Default exefile path
 exefile = os.path.join(os.environ['PROGRAMFILES(x86)'], "CCP",
                        "EVE", "bin", "ExeFile.exe")
+for _dir in rootDirs:
+    _exe = os.path.join(_dir, "bin", "ExeFile.exe")
+    if os.path.isfile(_exe):
+        exefile = _exe
+        break
+
+# Open client
 if os.path.isfile(exefile):
     subprocess.Popen([exefile, "/noconsole", "/ssoToken={}".format(ssoToken),
                       "/triPlatform={}".format(dx)])
