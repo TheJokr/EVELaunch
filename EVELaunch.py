@@ -18,7 +18,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-# Usage: python launchEve.py <USERNAME> <PASSWORD> <CHAR NAME> [triPlatform]
+# Usage: python EVELaunch.py <USERNAME> <PASSWORD> <CHAR NAME> [triPlatform]
 # <CHAR NAME> is the name of one of the characters of the Account
 
 
@@ -41,7 +41,7 @@ try:
     char = sys.argv[3]
 except IndexError:
     print("Missing information. "
-          "Usage: python launchEve.py <USERNAME> <PASSWORD> "
+          "Usage: python EVELaunch.py <USERNAME> <PASSWORD> "
           "<CHAR NAME> [triPlatform]")
     sys.exit(1)
 
