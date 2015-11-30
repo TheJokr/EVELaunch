@@ -45,6 +45,11 @@ except IndexError:
           "<CHAR NAME> [triPlatform]")
     sys.exit(1)
 
+try:
+    dx = sys.argv[4]
+except IndexError:
+    dx = "dx9"
+
 
 # Get access token
 s = requests.Session()
@@ -54,15 +59,14 @@ payload = {'ReturnURL': "/oauth/authorize/?client_id=eveLauncherTQ"
                         "&redirect_uri=https://login.eveonline.com/launcher"
                         "?client_id=eveLauncherTQ"
                         "&scope=eveClientToken%20user"}
-r = s.post(authURI, params=payload,
-           data={"UserName": user, "Password": pwd},
-           allow_redirects=True,
-           timeout=5)
+r = s.post(authURI, params=payload, data={"UserName": user, "Password": pwd},
+           allow_redirects=True, timeout=5)
 
 # Login challenge
 if not r.history:
     challengeURI = "https://login.eveonline.com/Account/Challenge"
-    r = s.post(challengeURI, params=payload, data={"Challenge": char})
+    r = s.post(challengeURI, params=payload, data={"Challenge": char},
+               allow_redirects=True, timeout=5)
 
 # Extract access token
 try:
@@ -75,8 +79,8 @@ except KeyError:
 
 # Get SSO token
 ssoURI = "https://login.eveonline.com/launcher/token"
-r = requests.get(ssoURI, params={'accesstoken': accToken},
-                 allow_redirects=True, timeout=5)
+r = s.get(ssoURI, params={'accesstoken': accToken},
+          allow_redirects=True, timeout=5)
 
 # Extract SSO token
 rFragment = urlparse.urlparse(r.url).fragment
@@ -86,10 +90,6 @@ ssoToken = urlparse.parse_qs(rFragment)['access_token'][0]
 exefile = os.path.join(os.environ['PROGRAMFILES(x86)'], "CCP",
                        "EVE", "bin", "ExeFile.exe")
 if os.path.isfile(exefile):
-    try:
-        dx = sys.argv[4]
-    except IndexError:
-        dx = "dx9"
     subprocess.Popen([exefile, "/noconsole", "/ssoToken={}".format(ssoToken),
                       "/triPlatform={}".format(dx)])
 else:
