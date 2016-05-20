@@ -1,8 +1,8 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # vim: set fileencoding=utf-8 :
 
 # EVELaunch.py: launches EVE Online without entering credentials
-# Copyright (C) 2015  Leo Blöcher
+# Copyright (C) 2015-2016  Leo Blöcher
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,8 +18,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-# Usage: python EVELaunch.py <USERNAME> <PASSWORD> <CHAR NAME> [triPlatform]
-# <CHAR NAME> is the name of one of the characters of the Account
+# Usage: python EVELaunch.py <Username> <Password> <Character name> [triPlatform]
+# <Character name> can be any character on that account
 
 
 import sys
@@ -27,9 +27,9 @@ import os
 import subprocess
 
 try:
-    import urlparse
-except ImportError:
     import urllib.parse as urlparse
+except ImportError:
+    import urlparse
 
 import requests
 
@@ -41,8 +41,8 @@ try:
     char = sys.argv[3]
 except IndexError:
     print("Missing information. "
-          "Usage: python EVELaunch.py <USERNAME> <PASSWORD> "
-          "<CHAR NAME> [triPlatform]")
+          "Usage: python EVELaunch.py <Username> <Password> "
+          "<Character name> [triPlatform]")
     sys.exit(1)
 
 try:
@@ -70,10 +70,10 @@ if not r.history:
 
 # Extract access token
 try:
-    rFragment = urlparse.urlparse(r.url).fragment
-    accToken = urlparse.parse_qs(rFragment)['access_token'][0]
+    accToken = urlparse.urlparse(r.url).fragment
+    accToken = urlparse.parse_qs(accToken)['access_token'][0]
 except KeyError:
-    print("Couldn't log in using provided credentials")
+    print("Failed to log in using your credentials")
     sys.exit(1)
 
 
@@ -83,34 +83,37 @@ r = s.get(ssoURI, params={'accesstoken': accToken},
           allow_redirects=True, timeout=5)
 
 # Extract SSO token
-rFragment = urlparse.urlparse(r.url).fragment
-ssoToken = urlparse.parse_qs(rFragment)['access_token'][0]
+ssoToken = urlparse.urlparse(r.url).fragment
+ssoToken = urlparse.parse_qs(ssoToken)['access_token'][0]
 
 
 # Locate exefile
 # CCP replaces whitespaces and '\' with underscores in their folder names
 # Who thought this would be a good idea?
 def getUnderscoredPath(base, fragments):
-    if "_" not in fragments:
+    if '_' not in fragments:
         # Last fragment
         checkPath = os.path.join(base, fragments)
         return checkPath if os.path.isdir(checkPath) else None
 
-    folder, path = fragments.split("_", 1)
+    folder, path = fragments.split('_', 1)
     checkPath = os.path.join(base, folder)
+
     if os.path.isdir(checkPath):
         # Path doesn't contain whitespaces (so far)
         return getUnderscoredPath(checkPath, path)
     else:
-        # Path either contains whitespaces or is invalid (deleted)
+        # Path either contains whitespaces or is invalid
         possiblePaths = []
-        pathParts = path.split("_")
+        pathParts = path.split('_')
+
         for idx, part in enumerate(pathParts):
             checkPath += " " + part
             if os.path.isdir(checkPath):
-                wP = getUnderscoredPath(checkPath, "_".join(pathParts[idx+1:]))
-                if wP:
-                    possiblePaths.append(wP)
+                newPaths = getUnderscoredPath(checkPath, '_'.join(pathParts[idx+1:]))
+                if newPaths:
+                    possiblePaths.append(newPaths)
+
         return possiblePaths
 
 
@@ -118,8 +121,10 @@ def getUnderscoredPath(base, fragments):
 def flatten(_list):
     if not _list:
         return _list
+
     if isinstance(_list[0], list):
         return flatten(_list[0]) + flatten(_list[1:])
+
     return _list[:1] + flatten(_list[1:])
 
 
@@ -134,7 +139,7 @@ for _dir in cfgDirs:
         drive, path = _dir.split('_', 1)
     except ValueError:
         # Path contains just a drive letter
-        drive, path = _dir.split('_', 1), ""
+        drive, path = _dir.split('_', 1)[0], ""
 
     drive = "{}:\\".format(drive.upper())
     rootDirs.append(getUnderscoredPath(drive, path))
@@ -143,8 +148,7 @@ rootDirs = flatten(rootDirs)
 rootDirs = [item for item in rootDirs if item is not None]
 
 # Default exefile path
-exefile = os.path.join(os.environ['PROGRAMFILES(x86)'], "CCP",
-                       "EVE", "bin", "ExeFile.exe")
+exefile = ""
 for _dir in rootDirs:
     _exe = os.path.join(_dir, "bin", "ExeFile.exe")
     if os.path.isfile(_exe):
@@ -156,5 +160,5 @@ if os.path.isfile(exefile):
     subprocess.Popen([exefile, "/noconsole", "/ssoToken={}".format(ssoToken),
                       "/triPlatform={}".format(dx)])
 else:
-    print("Couldn't find ExeFile.exe at \"{}\"".format(exefile))
+    print("Failed to find ExeFile.exe at \"{}\"".format(exefile))
     sys.exit(1)
