@@ -18,7 +18,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-# Usage: python EVELaunch.py <Username> <Password> <Character name> [triPlatform]
+# Usage: EVELaunch.py <Username> <Password> <Character name> [triPlatform]
 # <Character name> can be any character on that account
 
 
@@ -41,7 +41,7 @@ try:
     char = sys.argv[3]
 except IndexError:
     print("Missing information. "
-          "Usage: python EVELaunch.py <Username> <Password> "
+          "Usage: {} <Username> <Password> ".format(sys.argv[0])
           "<Character name> [triPlatform]")
     sys.exit(1)
 
@@ -110,7 +110,8 @@ def getUnderscoredPath(base, fragments):
         for idx, part in enumerate(pathParts):
             checkPath += " " + part
             if os.path.isdir(checkPath):
-                newPaths = getUnderscoredPath(checkPath, '_'.join(pathParts[idx+1:]))
+                newPaths = getUnderscoredPath(checkPath,
+                                              '_'.join(pathParts[idx+1:]))
                 if newPaths:
                     possiblePaths.append(newPaths)
 
