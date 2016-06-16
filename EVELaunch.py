@@ -23,9 +23,12 @@ import os
 import subprocess
 
 try:
-    import urllib.parse as urlparse
+    # Python 3
+    from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
 except ImportError:
-    import urlparse
+    # Python 2.7
+    from urlparse import urlparse, urlunparse, parse_qs
+    from urllib import urlencode
 
 import requests
 
@@ -50,38 +53,44 @@ except IndexError:
 
 # Get access token
 s = requests.Session()
-authURI = "https://login.eveonline.com/Account/LogOn"
-payload = {'ReturnURL': "/oauth/authorize/?client_id=eveLauncherTQ"
-                        "&lang=en&response_type=token"
-                        "&redirect_uri=https://login.eveonline.com/launcher"
-                        "?client_id=eveLauncherTQ"
-                        "&scope=eveClientToken%20user"}
-r = s.post(authURI, params=payload, data={"UserName": user, "Password": pwd},
+url = "https://login.eveonline.com/Account/LogOn"
+params = {
+    'ReturnURL': urlunparse((
+        "", "", "/oauth/authorize/", "",
+        urlencode({'client_id': "eveLauncherTQ",
+                   'response_type': "token",
+                   'redirect_uri': urlunparse((
+                       "https", "login.eveonline.com", "launcher", "",
+                       urlencode({'client_id': "eveLauncherTQ"}), ""
+                   )),
+                   'scope': "eveClientToken user"}), ""
+    ))
+}
+r = s.post(url, params=params, data={"UserName": user, "Password": pwd},
            allow_redirects=True, timeout=5)
 
 # Login challenge
 if not r.history:
-    challengeURI = "https://login.eveonline.com/Account/Challenge"
-    r = s.post(challengeURI, params=payload, data={"Challenge": char},
+    url = "https://login.eveonline.com/Account/Challenge"
+    r = s.post(url, params=params, data={"Challenge": char},
                allow_redirects=True, timeout=5)
 
 # Extract access token
 try:
-    accToken = urlparse.urlparse(r.url).fragment
-    accToken = urlparse.parse_qs(accToken)['access_token'][0]
+    token = urlparse(r.url).fragment
+    token = parse_qs(token)['access_token'][0]
 except KeyError:
     print("Failed to log in using your credentials", file=sys.stderr)
     sys.exit(1)
 
 
 # Get SSO token
-ssoURI = "https://login.eveonline.com/launcher/token"
-r = s.get(ssoURI, params={'accesstoken': accToken},
-          allow_redirects=True, timeout=5)
+url = "https://login.eveonline.com/launcher/token"
+r = s.get(url, params={'accesstoken': token}, allow_redirects=True, timeout=5)
 
 # Extract SSO token
-ssoToken = urlparse.urlparse(r.url).fragment
-ssoToken = urlparse.parse_qs(ssoToken)['access_token'][0]
+ssoToken = urlparse(r.url).fragment
+ssoToken = parse_qs(ssoToken)['access_token'][0]
 
 
 # Locate exefile
