@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import absolute_import, division, unicode_literals, print_function
 
 import sys
 import os
@@ -35,9 +36,10 @@ try:
     pwd = sys.argv[2]
     char = sys.argv[3]
 except IndexError:
-    print("Missing information. "
-          "Usage: {} <Username> <Password> ".format(sys.argv[0])
-          "<Character name> [triPlatform]")
+    print("Missing information.", file=sys.stderr)
+    print(("Usage: {} <Username> <Password> <Character name> "
+           "[SettingsProfile] [triPlatform]").format(sys.argv[0]),
+          file=sys.stderr)
     sys.exit(1)
 
 try:
@@ -68,7 +70,7 @@ try:
     accToken = urlparse.urlparse(r.url).fragment
     accToken = urlparse.parse_qs(accToken)['access_token'][0]
 except KeyError:
-    print("Failed to log in using your credentials")
+    print("Failed to log in using your credentials", file=sys.stderr)
     sys.exit(1)
 
 
