@@ -21,7 +21,6 @@ from __future__ import absolute_import, division, unicode_literals, print_functi
 import sys
 import os
 import subprocess
-
 try:
     # Python 3
     from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
@@ -45,10 +44,15 @@ except IndexError:
           file=sys.stderr)
     sys.exit(1)
 
-try:
-    dx = sys.argv[4]
-except IndexError:
-    dx = "dx9"
+settings = ""
+dx = "dx11"
+if len(sys.argv) > 4:
+    if sys.argv[4].startswith("dx"):
+        dx = sys.argv[4]
+    else:
+        settings = sys.argv[4]
+        if len(sys.argv) > 5:
+            dx = sys.argv[5]
 
 
 # Get access token
@@ -89,83 +93,78 @@ url = "https://login.eveonline.com/launcher/token"
 r = s.get(url, params={'accesstoken': token}, allow_redirects=True, timeout=5)
 
 # Extract SSO token
-ssoToken = urlparse(r.url).fragment
-ssoToken = parse_qs(ssoToken)['access_token'][0]
+token = urlparse(r.url).fragment
+token = parse_qs(token)['access_token'][0]
 
 
 # Locate exefile
 # CCP replaces whitespaces and '\' with underscores in their folder names
 # Who thought this would be a good idea?
-def getUnderscoredPath(base, fragments):
-    if '_' not in fragments:
-        # Last fragment
-        checkPath = os.path.join(base, fragments)
-        return checkPath if os.path.isdir(checkPath) else None
+def parse_eve_dir(abs_path):
+    def replace_underscore(val, replacements=(' ', '\\', '_')):
+        if '_' not in val:
+            yield val
+            return
 
-    folder, path = fragments.split('_', 1)
-    checkPath = os.path.join(base, folder)
+        base, ext = val.split('_', 1)
+        for alt in replace_underscore(ext):
+            for repl in replacements:
+                yield base + repl + alt
 
-    if os.path.isdir(checkPath):
-        # Path doesn't contain whitespaces (so far)
-        return getUnderscoredPath(checkPath, path)
+    if '_' in abs_path:
+        drive, path = abs_path.split('_', 1)
     else:
-        # Path either contains whitespaces or is invalid
-        possiblePaths = []
-        pathParts = path.split('_')
-
-        for idx, part in enumerate(pathParts):
-            checkPath += " " + part
-            if os.path.isdir(checkPath):
-                newPaths = getUnderscoredPath(checkPath,
-                                              '_'.join(pathParts[idx+1:]))
-                if newPaths:
-                    possiblePaths.append(newPaths)
-
-        return possiblePaths
-
-
-# Flatten list of unkown depth
-def flatten(_list):
-    if not _list:
-        return _list
-
-    if isinstance(_list[0], list):
-        return flatten(_list[0]) + flatten(_list[1:])
-
-    return _list[:1] + flatten(_list[1:])
-
-
-EVEConfig = os.path.join(os.environ['LOCALAPPDATA'], "CCP", "EVE")
-cfgDirs = [_dir[:-len("_tranquility")] for _dir in os.listdir(EVEConfig)
-           if os.path.isdir(os.path.join(EVEConfig, _dir)) and
-           _dir.endswith("_tranquility")]
-
-rootDirs = []
-for _dir in cfgDirs:
-    try:
-        drive, path = _dir.split('_', 1)
-    except ValueError:
-        # Path contains just a drive letter
-        drive, path = _dir.split('_', 1)[0], ""
-
+        drive, path = abs_path, ""
     drive = "{}:\\".format(drive.upper())
-    rootDirs.append(getUnderscoredPath(drive, path))
 
-rootDirs = flatten(rootDirs)
-rootDirs = [item for item in rootDirs if item is not None]
+    for repl_path in replace_underscore(path):
+        check_path = os.path.join(drive, repl_path)
+        if os.path.isdir(check_path):
+            yield check_path
 
-# Default exefile path
-exefile = ""
-for _dir in rootDirs:
-    _exe = os.path.join(_dir, "bin", "ExeFile.exe")
-    if os.path.isfile(_exe):
-        exefile = _exe
+
+eve_data_dir = os.path.join(os.environ['LOCALAPPDATA'], "CCP", "EVE")
+try:
+    cfg_dirs = (dir_ for dir_ in os.listdir(eve_data_dir)
+                if os.path.isdir(os.path.join(eve_data_dir, dir_)) and
+                dir_.endswith("_tranquility"))
+except OSError:
+    print('Failed to locate EVE configuration at "{}"'.format(eve_data_dir),
+          file=sys.stderr)
+    sys.exit(1)
+root_dirs = ((dir_, parse_eve_dir(dir_[:-len("_tranquility")]))
+             for dir_ in cfg_dirs)
+
+exefile = None
+cfg_path = None
+for cfg, paths in root_dirs:
+    for dir_ in paths:
+        exe = os.path.join(dir_, "bin", "ExeFile.exe")
+        if os.path.isfile(exe):
+            exefile = exe
+            cfg_path = os.path.join(eve_data_dir, cfg)
+            break
+
+    if exefile is not None:
         break
 
-# Open client
-if os.path.isfile(exefile):
-    subprocess.Popen([exefile, "/noconsole", "/ssoToken={}".format(ssoToken),
-                      "/triPlatform={}".format(dx)])
-else:
-    print("Failed to find ExeFile.exe at \"{}\"".format(exefile))
+if exefile is None:
+    print("Failed to locate ExeFile.exe", file=sys.stderr)
     sys.exit(1)
+
+
+# Open client
+cmd = [exefile, "/noconsole", "/ssoToken={}".format(token),
+       "/server:tranquility", "/triPlatform={}".format(dx)]
+
+if not settings:
+    settings = next(
+        (profile[len("settings_"):] for profile in os.listdir(cfg_path)
+         if os.path.isdir(os.path.join(cfg_path, profile)) and
+         profile.startswith("settings_")), None
+    )
+
+if settings:
+    cmd.append("/settingsprofile={}".format(settings))
+
+subprocess.Popen(cmd)
