@@ -92,6 +92,7 @@ except KeyError:
 # Get SSO token
 url = "https://login.eveonline.com/launcher/token"
 r = s.get(url, params={'accesstoken': token}, allow_redirects=True, timeout=5)
+s.close()
 
 # Extract SSO token
 token = urlparse(r.url).fragment
