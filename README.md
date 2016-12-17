@@ -1,7 +1,7 @@
+### CCP recently added mandatory 2FA to all accounts. Please use the official [EVE Launcher](https://community.eveonline.com/support/download/) from now on.
+
 # EVELaunch [![Build Status](https://travis-ci.org/TheJokr/EVELaunch.svg?branch=master)](https://travis-ci.org/TheJokr/EVELaunch)
 EVELaunch is a Python script that launches EVE Online directly using CLI parameters to authenticate.  
-**Note: This script was created before the new [EVE Launcher](https://community.eveonline.com/support/download/) was released.
-It is recommended to use CCP's launcher instead of EVELaunch nowadays.**  
 Inspired by [Rapid Heavy EVE Launcher](https://github.com/raylu/rhel).
 
 # Requirements
